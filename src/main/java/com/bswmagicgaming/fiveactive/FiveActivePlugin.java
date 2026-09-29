@@ -50,7 +50,6 @@ import net.runelite.client.config.RuneScapeProfile;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
 import net.runelite.client.util.Filepath;
-import net.runelite.client.util.LinkBrowser;
 import net.runelite.client.game.SpriteManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -246,10 +245,7 @@ public class FiveActivePlugin extends Plugin
 					clientThread.invoke(this::chooseRestore);
 					break;
 				default:
-					if (history.folder() != null)
-					{
-						LinkBrowser.open(history.folder().toString());
-					}
+					copyBackupFolder();
 					break;
 			}
 			return;
@@ -613,6 +609,19 @@ public class FiveActivePlugin extends Plugin
 	{
 		List<HistoryEntry> entries = history.getEntries();
 		return !entries.isEmpty() && entries.get(0).getKind() == HistoryEntry.Kind.RUN_STARTED;
+	}
+
+	/** Copies where the backups are kept (plugins can't open folders themselves), to paste into a file manager. */
+	private void copyBackupFolder()
+	{
+		if (history.folder() == null)
+		{
+			return;
+		}
+		String location = history.folder().toString();
+		SwingUtilities.invokeLater(() ->
+			Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(location), null));
+		clientThread.invoke(() -> chat("Backup folder location copied: paste it into File Explorer's address bar to open it."));
 	}
 
 	private void copySaveCode()

@@ -342,8 +342,9 @@ public interface FiveActiveConfig extends Config
 	/** Acts as a button. */
 	@ConfigItem(
 		keyName = OPEN_BACKUPS_KEY,
-		name = "Open backup folder (tick)",
-		description = "Opens the folder with this account's backups and History log.",
+		name = "Copy backup folder location (tick)",
+		description = "Copies where this account's backups and History log are kept.<br>"
+			+ "Paste it into File Explorer's address bar to open the folder.",
 		section = BACKUP_SECTION,
 		position = 4
 	)
