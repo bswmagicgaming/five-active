@@ -502,9 +502,9 @@ public class FiveActivePlugin extends Plugin
 	private static final int TIER_FIREWORKS_KEY = 0x5A_7153;
 
 	/**
-	 * Newly rolled skills start part of the way through their 5 level-ups, so they always complete on a multiple of
-	 * 5 (level 5, 10, 15...): rolled at level 1 a skill is already 1/5, finishing at 5; at level 5 it's 0/5, finishing
-	 * at 10. After the first one, completed skills sit on multiples of 5 anyway.
+	 * Newly rolled skills start part of the way through their level-ups, so they always complete on a multiple of 5
+	 * (level 5, 10, 15...): rolled at level 1 a skill is already 1/5, finishing at 5; at level 5 it's 0/5, finishing
+	 * at 10. The last stretch stops at 99: rolled at 95 it's 0/4, at 97 it's 2/4.
 	 */
 	private void startFromLevel(List<Slot<Skill>> before, List<Slot<Skill>> after)
 	{
@@ -512,7 +512,9 @@ public class FiveActivePlugin extends Plugin
 		{
 			if (before.stream().noneMatch(b -> b == slot))
 			{
-				slot.setProgress(client.getRealSkillLevel(slot.getValue()) % Rules.LEVELS_TO_COMPLETE_SKILL);
+				int level = client.getRealSkillLevel(slot.getValue());
+				slot.setGoal(Rules.skillGoalFrom(level));
+				slot.setProgress(Rules.skillProgressFrom(level));
 			}
 		}
 	}
@@ -591,12 +593,13 @@ public class FiveActivePlugin extends Plugin
 			}
 			history.backup(gson.toJson(state));
 			Slot<?> slot = slots.get(index);
-			int goal = category == Category.SKILLS ? Rules.LEVELS_TO_COMPLETE_SKILL : ((Boss) slot.getValue()).getKillsToComplete();
+			int goal = category == Category.SKILLS ? Rules.skillGoal(slot) : ((Boss) slot.getValue()).getKillsToComplete();
 			slot.setProgress(slot.getProgress() + 1);
 			slot.setFresh(false);
 			if (slot.getProgress() >= goal)
 			{
 				slot.setDone(true);
+				slot.setDoneAt(System.currentTimeMillis());
 				String name = category == Category.SKILLS ? ((Skill) slot.getValue()).getName() : ((Boss) slot.getValue()).getDisplayName();
 				history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(category).name(name));
 				playSound(SoundEffectID.GE_COIN_TINKLE);
@@ -1549,7 +1552,7 @@ public class FiveActivePlugin extends Plugin
 		int totalKc = getTotalBossKc();
 
 		List<PanelData.SlotView> skills = state.getSkills().stream()
-			.map(s -> new PanelData.SlotView(s.getValue().getName(), s.getValue(), s.getProgress(), Rules.LEVELS_TO_COMPLETE_SKILL, s.isDone(), s.isFresh(), null, -1))
+			.map(s -> new PanelData.SlotView(s.getValue().getName(), s.getValue(), s.getProgress(), Rules.skillGoal(s), s.isDone(), s.isFresh(), null, -1))
 			.collect(Collectors.toList());
 		List<PanelData.SlotView> bosses = state.getBosses().stream()
 			.map(s -> new PanelData.SlotView(s.getValue().getDisplayName(), null, s.getProgress(), s.getValue().getKillsToComplete(), s.isDone(), s.isFresh(), null, iconSprite(s.getValue())))
@@ -1562,7 +1565,7 @@ public class FiveActivePlugin extends Plugin
 		List<Skill> skillPool = rollingEngine.rollableSkills(questStates);
 		skillPool.removeIf(s -> findActive(state.getSkills(), s) != null);
 		int skillsCanRoll = Math.min(RollingEngine.openSlots(state.getSkills()), skillPool.size());
-		boolean allSkillsDone = skillPool.isEmpty() && state.getSkills().stream().allMatch(Slot::isDone);
+		boolean allSkillsDone = skillPool.isEmpty() && state.getSkills().isEmpty();
 		List<Skill> maxedSkills = new ArrayList<>();
 		for (Skill skill : Skill.values())
 		{
@@ -1579,7 +1582,7 @@ public class FiveActivePlugin extends Plugin
 		List<Quest> questPool = rollingEngine.rollableQuests(questStates);
 		questPool.removeIf(q -> findActive(state.getQuests(), q) != null);
 		int questsCanRoll = Math.min(RollingEngine.openSlots(state.getQuests()), questPool.size());
-		boolean allQuestsDone = questPool.isEmpty() && state.getQuests().stream().allMatch(Slot::isDone);
+		boolean allQuestsDone = questPool.isEmpty() && state.getQuests().isEmpty();
 
 		List<PanelData.TierView> tiers = new ArrayList<>();
 		for (BossTiers.Tier tier : BossTiers.TIERS)

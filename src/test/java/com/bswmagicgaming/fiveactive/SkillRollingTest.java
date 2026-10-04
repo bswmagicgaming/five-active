@@ -68,7 +68,7 @@ public class SkillRollingTest
 	{
 		RollingEngine engine = engineWithMaxed(Skill.ATTACK);
 		List<Slot<Skill>> current = new ArrayList<>();
-		current.add(new Slot<>(Skill.STRENGTH, 5, true, false, 0, 0)); // completed combat slot
+		current.add(new Slot<>(Skill.STRENGTH, 5, true, false, 0, 0, 0)); // completed combat slot
 		for (Skill skill : Arrays.asList(Skill.COOKING, Skill.FISHING, Skill.MINING, Skill.AGILITY))
 		{
 			current.add(Slot.of(skill));
@@ -179,7 +179,7 @@ public class SkillRollingTest
 			List<Slot<Skill>> current = new ArrayList<>();
 			for (int s = 0; s < random.nextInt(6) && s < pool.size(); s++)
 			{
-				current.add(new Slot<>(pool.get(s), 0, random.nextBoolean(), false, 0, 0));
+				current.add(new Slot<>(pool.get(s), 0, random.nextBoolean(), false, 0, 0, 0));
 			}
 			boolean shuffle = random.nextBoolean() && !current.isEmpty();
 			if (!shuffle && RollingEngine.openSlots(current) == 0)

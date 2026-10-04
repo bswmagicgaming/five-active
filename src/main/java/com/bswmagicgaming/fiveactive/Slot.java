@@ -23,9 +23,11 @@ class Slot<T>
 	private long rolledAt;
 	/** When this slot was completed (epoch millis), or 0 if it isn't or it was before this was kept. */
 	private long doneAt;
+	/** Skills only: level-ups this slot needs (fewer than 5 for the last stretch to 99), or 0 for the usual 5. */
+	private int goal;
 
 	static <T> Slot<T> of(T value)
 	{
-		return new Slot<>(value, 0, false, true, System.currentTimeMillis(), 0);
+		return new Slot<>(value, 0, false, true, System.currentTimeMillis(), 0, 0);
 	}
 }

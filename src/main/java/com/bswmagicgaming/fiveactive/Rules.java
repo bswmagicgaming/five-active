@@ -25,8 +25,39 @@ final class Rules
 	/** How long the "NEW" badge shows on a freshly rolled slot. */
 	static final int NEW_BADGE_SECONDS = 7;
 
-	/** How long a completed quest with nothing left to replace it stays on show before leaving the list. */
-	static final int STRANDED_QUEST_SECONDS = 7;
+	/** How long a completed quest or skill with nothing left to replace it stays on show before leaving the list. */
+	static final int STRANDED_SLOT_SECONDS = 7;
+
+	/** The highest skill level. */
+	static final int MAX_LEVEL = 99;
+
+	/** Level-ups a skill rolled at this level needs in all: 5, up to the next multiple of 5, or 4 from 95 to 99. */
+	static int skillGoalFrom(int level)
+	{
+		int from = level - level % LEVELS_TO_COMPLETE_SKILL;
+		return Math.min(from + LEVELS_TO_COMPLETE_SKILL, MAX_LEVEL) - from;
+	}
+
+	/** How many of those a skill rolled at this level already has: level 1 is 1/5, level 5 is 0/5, 97 is 2/4. */
+	static int skillProgressFrom(int level)
+	{
+		return level % LEVELS_TO_COMPLETE_SKILL;
+	}
+
+	/** Level-ups a skill slot needs to complete: usually 5, fewer for one rolled on the last stretch to 99. */
+	static int skillGoal(Slot<?> slot)
+	{
+		return slot.getGoal() > 0 ? slot.getGoal() : LEVELS_TO_COMPLETE_SKILL;
+	}
+
+	/**
+	 * The goal shown with a logged level-up, from the level alone: past 95 the slot can only have been rolled on the
+	 * last stretch (95 to 99), which is 4 levels; every other slot is 5.
+	 */
+	static int skillGoalAtLevel(int level)
+	{
+		return level > MAX_LEVEL - MAX_LEVEL % LEVELS_TO_COMPLETE_SKILL ? MAX_LEVEL % LEVELS_TO_COMPLETE_SKILL : LEVELS_TO_COMPLETE_SKILL;
+	}
 
 	/** Collection log slots needed per Shuffle earned. */
 	static final int CLOG_SLOTS_PER_SHUFFLE = 50;

@@ -817,7 +817,7 @@ class FiveActivePanel extends PluginPanel
 		add(rulesCard("Skills",
 			"Gain <w>" + Rules.LEVELS_TO_COMPLETE_SKILL + " levels</w> in an active skill to complete it, ending on a multiple of "
 				+ Rules.LEVELS_TO_COMPLETE_SKILL + ": a skill rolled at level 1 starts at <w>1/" + Rules.LEVELS_TO_COMPLETE_SKILL
-				+ "</w> and completes at level 5, then 10, 15 and so on.",
+				+ "</w> and completes at level 5, then 10, 15 and so on. The last stretch, 95 to 99, is 4 levels.",
 			"At least one active skill will always be a <w>combat skill</w> (Attack, Strength, Defence, Ranged or Magic), so that you're always ready for a fight.",
 			"Skills that reach <w>level 99</w> stay active for good and are never rolled. Hitpoints is always active.",
 			"Some skills can only be rolled once you've done their quest:",
@@ -2073,7 +2073,7 @@ class FiveActivePanel extends PluginPanel
 			{
 				String levels = runStart == null ? "level " + w(String.valueOf(e.getValue()))
 					: "levels " + w(runStart.getValue() + "-" + e.getValue());
-				String progress = e.getProgress() >= 0 ? " " + color("(" + e.getProgress() + "/" + Rules.LEVELS_TO_COMPLETE_SKILL + ")", HISTORY_TIME) : "";
+				String progress = e.getProgress() >= 0 ? " " + color("(" + e.getProgress() + "/" + Rules.skillGoalAtLevel((int) e.getValue()) + ")", HISTORY_TIME) : "";
 				return new HistoryLine(entryIcon(Category.SKILLS, name), html(name) + " " + levels + progress, e.getTime());
 			}
 			case CLOG_ITEM:

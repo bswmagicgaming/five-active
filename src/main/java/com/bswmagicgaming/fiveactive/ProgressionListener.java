@@ -139,30 +139,33 @@ class ProgressionListener
 			return;
 		}
 
-		slot.setProgress(Math.min(Rules.LEVELS_TO_COMPLETE_SKILL, slot.getProgress() + gained));
+		int goal = Rules.skillGoal(slot);
+		slot.setProgress(Math.min(goal, slot.getProgress() + gained));
 		history.add(HistoryEntry.of(HistoryEntry.Kind.LEVEL_UP).name(skill.getName()).value(event.getLevel())
-			.progress(event.getLevel() >= Experience.MAX_REAL_LEVEL ? Rules.LEVELS_TO_COMPLETE_SKILL : slot.getProgress()));
+			.progress(event.getLevel() >= Experience.MAX_REAL_LEVEL ? goal : slot.getProgress()));
 		slot.setFresh(false);
 		if (event.getLevel() >= Experience.MAX_REAL_LEVEL)
 		{
 			// Can't level any further: the slot is finished and the skill is permanently unlocked
-			slot.setProgress(Rules.LEVELS_TO_COMPLETE_SKILL);
+			slot.setProgress(goal);
 			slot.setDone(true);
+			slot.setDoneAt(System.currentTimeMillis());
 			history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(Category.SKILLS).name(skill.getName()));
 			history.add(HistoryEntry.of(HistoryEntry.Kind.MAXED).category(Category.SKILLS).name(skill.getName()));
 			plugin.chat("<col=00ff00>" + skill.getName() + " maxed!</col> It is now permanently unlocked. Roll a replacement skill in the side panel.");
 			plugin.playSound(SoundEffectID.GE_COIN_TINKLE);
 		}
-		else if (slot.getProgress() >= Rules.LEVELS_TO_COMPLETE_SKILL)
+		else if (slot.getProgress() >= goal)
 		{
 			slot.setDone(true);
+			slot.setDoneAt(System.currentTimeMillis());
 			history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(Category.SKILLS).name(skill.getName()));
 			plugin.chat("<col=00ff00>" + skill.getName() + " complete!</col> Roll a replacement skill in the side panel.");
 			plugin.playSound(SoundEffectID.GE_COIN_TINKLE);
 		}
 		else
 		{
-			plugin.chat(skill.getName() + " level-ups: " + slot.getProgress() + "/" + Rules.LEVELS_TO_COMPLETE_SKILL);
+			plugin.chat(skill.getName() + " level-ups: " + slot.getProgress() + "/" + goal);
 		}
 		plugin.saveState();
 		plugin.refreshPanel();
@@ -426,27 +429,26 @@ class ProgressionListener
 	}
 
 	/**
-	 * A completed quest normally waits for Roll to replace it, but once there's no quest left to roll (every other
-	 * one is done, already active, or still locked behind another), nothing ever would. Those show as completed for
-	 * {@link Rules#STRANDED_QUEST_SECONDS}, then leave the list.
+	 * A completed quest or skill normally waits for Roll to replace it, but once there's none left to roll (every
+	 * other one is done or maxed, already active, or still locked), nothing ever would. Those show as completed for
+	 * {@link Rules#STRANDED_SLOT_SECONDS}, then leave the list. (Bosses never run out: they can be rolled again.)
 	 */
-	private void clearStrandedQuests(FiveActiveState state)
+	private <T> void clearStranded(List<Slot<T>> slots, List<T> rollable)
 	{
-		if (state.getQuests().stream().noneMatch(Slot::isDone))
+		if (slots.stream().noneMatch(Slot::isDone))
 		{
 			return;
 		}
-		Set<Quest> active = state.getQuests().stream().filter(s -> !s.isDone()).map(Slot::getValue).collect(Collectors.toSet());
-		boolean replaceable = rollingEngine.rollableQuests(rollingEngine.questStates()).stream().anyMatch(q -> !active.contains(q));
-		if (replaceable)
+		Set<T> active = slots.stream().filter(s -> !s.isDone()).map(Slot::getValue).collect(Collectors.toSet());
+		if (rollable.stream().anyMatch(v -> !active.contains(v)))
 		{
 			return;
 		}
 		long now = System.currentTimeMillis();
 		boolean changed = false;
-		for (Iterator<Slot<Quest>> it = state.getQuests().iterator(); it.hasNext(); )
+		for (Iterator<Slot<T>> it = slots.iterator(); it.hasNext(); )
 		{
-			Slot<Quest> slot = it.next();
+			Slot<T> slot = it.next();
 			if (!slot.isDone())
 			{
 				continue;
@@ -457,7 +459,7 @@ class ProgressionListener
 				slot.setDoneAt(now);
 				changed = true;
 			}
-			else if (now - slot.getDoneAt() >= Rules.STRANDED_QUEST_SECONDS * 1000L)
+			else if (now - slot.getDoneAt() >= Rules.STRANDED_SLOT_SECONDS * 1000L)
 			{
 				it.remove();
 				changed = true;
@@ -480,7 +482,8 @@ class ProgressionListener
 		}
 
 		expireNewBadges(state);
-		clearStrandedQuests(state);
+		clearStranded(state.getQuests(), rollingEngine.rollableQuests(rollingEngine.questStates()));
+		clearStranded(state.getSkills(), rollingEngine.rollableSkills(rollingEngine.questStates()));
 		++tickCounter;
 		logUnnamedClogSlots();
 
