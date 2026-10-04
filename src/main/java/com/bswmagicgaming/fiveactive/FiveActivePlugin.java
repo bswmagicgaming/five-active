@@ -564,7 +564,7 @@ public class FiveActivePlugin extends Plugin
 		});
 	}
 
-	/** R + B/Q/S + 1-5: empties that slot, so it can be rolled again. */
+	/** R + B/O/L + 1-5: empties that boss, quest or skill slot, so it can be rolled again. */
 	void hiddenEmptySlot(Category category, int index)
 	{
 		clientThread.invoke(() ->
@@ -581,7 +581,7 @@ public class FiveActivePlugin extends Plugin
 		});
 	}
 
-	/** P + B/S + 1-5: one kill or level-up of progress on that slot, completing it at its goal. */
+	/** P + B/L + 1-5: one kill or level-up of progress on that boss or skill slot, completing it at its goal. */
 	void hiddenProgressSlot(Category category, int index)
 	{
 		clientThread.invoke(() ->

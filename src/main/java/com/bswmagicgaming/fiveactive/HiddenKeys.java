@@ -12,8 +12,8 @@ import net.runelite.client.input.KeyListener;
  * Undocumented shortcuts for filming and for fixing a run by hand. Deliberately not in the settings.
  * 
  * Ctrl+Shift+F11: reset the whole run (every slot emptied, Shuffles returned).
- * Hold R and B, Q or S, then press 1 to 5: empty that boss, quest or skill slot.
- * Hold P and B or S, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.
+ * Hold R and B, O or L, then press 1 to 5: empty that boss, quest or skill slot.
+ * Hold P and B or L, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.
  * 
  * They're off until switched on by typing ::fiveactive keys in the chatbox (again to switch off), so a random
  * smack of the keyboard can't touch anyone's run. 
@@ -47,7 +47,7 @@ class HiddenKeys implements KeyListener
 			plugin.hiddenResetRun();
 			return;
 		}
-		if (key == KeyEvent.VK_R || key == KeyEvent.VK_P || key == KeyEvent.VK_B || key == KeyEvent.VK_Q || key == KeyEvent.VK_S)
+		if (key == KeyEvent.VK_R || key == KeyEvent.VK_P || key == KeyEvent.VK_B || key == KeyEvent.VK_O || key == KeyEvent.VK_L)
 		{
 			held.add(key);
 			return;
@@ -59,8 +59,8 @@ class HiddenKeys implements KeyListener
 			return;
 		}
 		Category category = held.contains(KeyEvent.VK_B) ? Category.BOSSES
-			: held.contains(KeyEvent.VK_Q) ? Category.QUESTS
-			: held.contains(KeyEvent.VK_S) ? Category.SKILLS
+			: held.contains(KeyEvent.VK_O) ? Category.QUESTS
+			: held.contains(KeyEvent.VK_L) ? Category.SKILLS
 			: null;
 		if (category == null)
 		{
