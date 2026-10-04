@@ -25,6 +25,9 @@ final class Rules
 	/** How long the "NEW" badge shows on a freshly rolled slot. */
 	static final int NEW_BADGE_SECONDS = 7;
 
+	/** How long a completed quest with nothing left to replace it stays on show before leaving the list. */
+	static final int STRANDED_QUEST_SECONDS = 7;
+
 	/** Collection log slots needed per Shuffle earned. */
 	static final int CLOG_SLOTS_PER_SHUFFLE = 50;
 

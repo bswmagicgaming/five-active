@@ -10,14 +10,14 @@ import net.runelite.client.input.KeyListener;
 
 /**
  * Undocumented shortcuts for filming and for fixing a run by hand. Deliberately not in the settings.
- * <ul>
- * <li>Ctrl+Shift+F11: reset the whole run (every slot emptied, Shuffles returned).</li>
- * <li>Hold R and B, Q or S, then press 1 to 5: empty that boss, quest or skill slot.</li>
- * <li>Hold P and B or S, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.</li>
- * </ul>
+ * 
+ * Ctrl+Shift+F11: reset the whole run (every slot emptied, Shuffles returned).
+ * Hold R and B, Q or S, then press 1 to 5: empty that boss, quest or skill slot.
+ * Hold P and B or S, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.
+ * 
  * They're off until switched on by typing ::fiveactive keys in the chatbox (again to switch off), so a random
- * smack of the keyboard can't touch anyone's run. The run is backed up before each one, so Restore a backup can
- * undo it. Nothing happens while typing in chat.
+ * smack of the keyboard can't touch anyone's run. 
+ * The run is backed up before each one, so Restore a backup can undo it. Nothing happens while typing in chat.
  */
 class HiddenKeys implements KeyListener
 {

@@ -21,9 +21,11 @@ class Slot<T>
 	private boolean fresh;
 	/** When this slot was rolled (epoch millis), for expiring the NEW badge. */
 	private long rolledAt;
+	/** When this slot was completed (epoch millis), or 0 if it isn't or it was before this was kept. */
+	private long doneAt;
 
 	static <T> Slot<T> of(T value)
 	{
-		return new Slot<>(value, 0, false, true, System.currentTimeMillis());
+		return new Slot<>(value, 0, false, true, System.currentTimeMillis(), 0);
 	}
 }

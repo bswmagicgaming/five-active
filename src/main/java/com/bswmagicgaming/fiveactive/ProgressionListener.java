@@ -3,10 +3,13 @@ package com.bswmagicgaming.fiveactive;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
@@ -45,6 +48,7 @@ class ProgressionListener
 	private final FiveActivePlugin plugin;
 	private final RunHistory history;
 	private final ItemManager itemManager;
+	private final RollingEngine rollingEngine;
 
 	private final Map<Skill, Integer> lastLevels = new EnumMap<>(Skill.class);
 	private final Map<Skill, Integer> lastXp = new EnumMap<>(Skill.class);
@@ -63,8 +67,9 @@ class ProgressionListener
 	private int clogSlotsSeenTick;
 
 	@Inject
-	ProgressionListener(Client client, FiveActivePlugin plugin, RunHistory history, ItemManager itemManager)
+	ProgressionListener(Client client, FiveActivePlugin plugin, RunHistory history, ItemManager itemManager, RollingEngine rollingEngine)
 	{
+		this.rollingEngine = rollingEngine;
 		this.client = client;
 		this.plugin = plugin;
 		this.history = history;
@@ -420,6 +425,51 @@ class ProgressionListener
 		}
 	}
 
+	/**
+	 * A completed quest normally waits for Roll to replace it, but once there's no quest left to roll (every other
+	 * one is done, already active, or still locked behind another), nothing ever would. Those show as completed for
+	 * {@link Rules#STRANDED_QUEST_SECONDS}, then leave the list.
+	 */
+	private void clearStrandedQuests(FiveActiveState state)
+	{
+		if (state.getQuests().stream().noneMatch(Slot::isDone))
+		{
+			return;
+		}
+		Set<Quest> active = state.getQuests().stream().filter(s -> !s.isDone()).map(Slot::getValue).collect(Collectors.toSet());
+		boolean replaceable = rollingEngine.rollableQuests(rollingEngine.questStates()).stream().anyMatch(q -> !active.contains(q));
+		if (replaceable)
+		{
+			return;
+		}
+		long now = System.currentTimeMillis();
+		boolean changed = false;
+		for (Iterator<Slot<Quest>> it = state.getQuests().iterator(); it.hasNext(); )
+		{
+			Slot<Quest> slot = it.next();
+			if (!slot.isDone())
+			{
+				continue;
+			}
+			if (slot.getDoneAt() == 0)
+			{
+				// Completed before completion times were kept: its 7 seconds start now
+				slot.setDoneAt(now);
+				changed = true;
+			}
+			else if (now - slot.getDoneAt() >= Rules.STRANDED_QUEST_SECONDS * 1000L)
+			{
+				it.remove();
+				changed = true;
+			}
+		}
+		if (changed)
+		{
+			plugin.saveState();
+			plugin.refreshPanel();
+		}
+	}
+
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
@@ -430,6 +480,7 @@ class ProgressionListener
 		}
 
 		expireNewBadges(state);
+		clearStrandedQuests(state);
 		++tickCounter;
 		logUnnamedClogSlots();
 
@@ -456,6 +507,7 @@ class ProgressionListener
 			{
 				slot.setDone(true);
 				slot.setFresh(false);
+				slot.setDoneAt(System.currentTimeMillis());
 				history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(Category.QUESTS).name(slot.getValue().getName()));
 				plugin.chat("<col=00ff00>Quest complete: " + slot.getValue().getName() + "!</col> Roll a new quest in the side panel.");
 				changed = true;
