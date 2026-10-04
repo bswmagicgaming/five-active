@@ -38,7 +38,10 @@ import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ClientTick;
+import net.runelite.api.events.FocusChanged;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.SoundEffectID;
+import net.runelite.client.input.KeyManager;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -88,6 +91,8 @@ public class FiveActivePlugin extends Plugin
 	@Inject private TierBannerOverlay tierBannerOverlay;
 	@Inject private ProgressionListener progressionListener;
 	@Inject private QuestListListener questListListener;
+	@Inject private KeyManager keyManager;
+	@Inject private HiddenKeys hiddenKeys;
 	@Inject @Getter private RunHistory history;
 	@Inject @Getter private ItemManager itemManager;
 
@@ -143,6 +148,7 @@ public class FiveActivePlugin extends Plugin
 		overlayManager.add(tierBannerOverlay);
 		eventBus.register(progressionListener);
 		eventBus.register(questListListener);
+		keyManager.registerKeyListener(hiddenKeys);
 
 		clientThread.invoke(() ->
 		{
@@ -163,6 +169,7 @@ public class FiveActivePlugin extends Plugin
 	{
 		eventBus.unregister(progressionListener);
 		eventBus.unregister(questListListener);
+		keyManager.unregisterKeyListener(hiddenKeys);
 		overlayManager.remove(skillsTabOverlay);
 		overlayManager.remove(fiveActiveOverlay);
 		overlayManager.remove(tierBannerOverlay);
@@ -491,6 +498,101 @@ public class FiveActivePlugin extends Plugin
 
 	/** Our slot for the fireworks spot animation on the player, so it doesn't replace anything the game shows. */
 	private static final int TIER_FIREWORKS_KEY = 0x5A_7153;
+
+	/**
+	 * Newly rolled skills start part of the way through their 5 level-ups, so they always complete on a multiple of
+	 * 5 (level 5, 10, 15...): rolled at level 1 a skill is already 1/5, finishing at 5; at level 5 it's 0/5, finishing
+	 * at 10. After the first one, completed skills sit on multiples of 5 anyway.
+	 */
+	private void startFromLevel(List<Slot<Skill>> before, List<Slot<Skill>> after)
+	{
+		for (Slot<Skill> slot : after)
+		{
+			if (before.stream().noneMatch(b -> b == slot))
+			{
+				slot.setProgress(client.getRealSkillLevel(slot.getValue()) % Rules.LEVELS_TO_COMPLETE_SKILL);
+			}
+		}
+	}
+
+	// ---------------------------------------------------------------- Hidden shortcuts (see HiddenKeys)
+
+	@Subscribe
+	public void onFocusChanged(FocusChanged event)
+	{
+		if (!event.isFocused())
+		{
+			hiddenKeys.clear();
+		}
+	}
+
+	/** Ctrl+Shift+F11: every slot emptied and every Shuffle returned. Kill counts, tiers and the History stay. */
+	void hiddenResetRun()
+	{
+		clientThread.invoke(() ->
+		{
+			if (state == null)
+			{
+				return;
+			}
+			history.backup(gson.toJson(state));
+			state.setSkills(new ArrayList<>());
+			state.setBosses(new ArrayList<>());
+			state.setQuests(new ArrayList<>());
+			state.setShufflesSpent(0);
+			saveState();
+			refreshPanel();
+		});
+	}
+
+	/** R + B/Q/S + 1-5: empties that slot, so it can be rolled again. */
+	void hiddenEmptySlot(Category category, int index)
+	{
+		clientThread.invoke(() ->
+		{
+			List<? extends Slot<?>> slots = state == null ? null : slotsOf(category);
+			if (slots == null || index >= slots.size())
+			{
+				return;
+			}
+			history.backup(gson.toJson(state));
+			slots.remove(index);
+			saveState();
+			refreshPanel();
+		});
+	}
+
+	/** P + B/S + 1-5: one kill or level-up of progress on that slot, completing it at its goal. */
+	void hiddenProgressSlot(Category category, int index)
+	{
+		clientThread.invoke(() ->
+		{
+			List<? extends Slot<?>> slots = state == null ? null : slotsOf(category);
+			if (slots == null || index >= slots.size() || slots.get(index).isDone())
+			{
+				return;
+			}
+			history.backup(gson.toJson(state));
+			Slot<?> slot = slots.get(index);
+			int goal = category == Category.SKILLS ? Rules.LEVELS_TO_COMPLETE_SKILL : ((Boss) slot.getValue()).getKillsToComplete();
+			slot.setProgress(slot.getProgress() + 1);
+			slot.setFresh(false);
+			if (slot.getProgress() >= goal)
+			{
+				slot.setDone(true);
+				String name = category == Category.SKILLS ? ((Skill) slot.getValue()).getName() : ((Boss) slot.getValue()).getDisplayName();
+				history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(category).name(name));
+				playSound(SoundEffectID.GE_COIN_TINKLE);
+			}
+			saveState();
+			refreshPanel();
+		});
+	}
+
+	private List<? extends Slot<?>> slotsOf(Category category)
+	{
+		return category == Category.SKILLS ? state.getSkills() : category == Category.BOSSES ? state.getBosses() : state.getQuests();
+	}
 
 	void saveState()
 	{
@@ -1087,6 +1189,7 @@ public class FiveActivePlugin extends Plugin
 			{
 				List<Slot<Skill>> rolled = rollingEngine.rollSkills(state.getSkills(), shuffle, questStates);
 				added = newNames(state.getSkills(), rolled, Skill::getName);
+				startFromLevel(state.getSkills(), rolled);
 				state.setSkills(rolled);
 				break;
 			}

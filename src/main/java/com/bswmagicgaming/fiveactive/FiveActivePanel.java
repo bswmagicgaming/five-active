@@ -815,7 +815,9 @@ class FiveActivePanel extends PluginPanel
 			// Skill on the first line, its quest under it: every entry is laid out the same, and the pair fills the icon's height
 			skillIcon(skill), "<w>" + skill.getName() + "</w>\n" + quest.getName())));
 		add(rulesCard("Skills",
-			"Gain <w>" + Rules.LEVELS_TO_COMPLETE_SKILL + " levels</w> in an active skill to complete it.",
+			"Gain <w>" + Rules.LEVELS_TO_COMPLETE_SKILL + " levels</w> in an active skill to complete it, ending on a multiple of "
+				+ Rules.LEVELS_TO_COMPLETE_SKILL + ": a skill rolled at level 1 starts at <w>1/" + Rules.LEVELS_TO_COMPLETE_SKILL
+				+ "</w> and completes at level 5, then 10, 15 and so on.",
 			"At least one active skill will always be a <w>combat skill</w> (Attack, Strength, Defence, Ranged or Magic), so that you're always ready for a fight.",
 			"Skills that reach <w>level 99</w> stay active for good and are never rolled. Hitpoints is always active.",
 			"Some skills can only be rolled once you've done their quest:",
