@@ -264,6 +264,15 @@ public interface FiveActiveConfig extends Config
 		return false;
 	}
 
+	String SHORTCUTS_KEY = "shortcutsEnabled";
+
+	/** The undocumented shortcuts (see HiddenKeys): off until switched on with the ::fiveactive keys chat command. */
+	@ConfigItem(keyName = SHORTCUTS_KEY, name = "", description = "", hidden = true)
+	default boolean shortcutsEnabled()
+	{
+		return false;
+	}
+
 	String COLLAPSED_TIERS_KEY = "collapsedTiers";
 
 	/** Comma-separated boss pool tiers (by KC milestone) the user has collapsed. */

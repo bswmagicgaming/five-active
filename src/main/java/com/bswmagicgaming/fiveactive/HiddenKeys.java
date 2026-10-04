@@ -15,7 +15,9 @@ import net.runelite.client.input.KeyListener;
  * <li>Hold R and B, Q or S, then press 1 to 5: empty that boss, quest or skill slot.</li>
  * <li>Hold P and B or S, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.</li>
  * </ul>
- * The run is backed up before each one, so Restore a backup can undo it. Nothing happens while typing in chat.
+ * They're off until switched on by typing ::fiveactive keys in the chatbox (again to switch off), so a random
+ * smack of the keyboard can't touch anyone's run. The run is backed up before each one, so Restore a backup can
+ * undo it. Nothing happens while typing in chat.
  */
 class HiddenKeys implements KeyListener
 {
@@ -34,6 +36,10 @@ class HiddenKeys implements KeyListener
 	@Override
 	public void keyPressed(KeyEvent e)
 	{
+		if (!plugin.getConfig().shortcutsEnabled())
+		{
+			return;
+		}
 		int key = e.getKeyCode();
 		if (key == KeyEvent.VK_F11 && e.isControlDown() && e.isShiftDown())
 		{

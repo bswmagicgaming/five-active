@@ -38,6 +38,7 @@ import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ClientTick;
+import net.runelite.api.events.CommandExecuted;
 import net.runelite.api.events.FocusChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.SoundEffectID;
@@ -262,6 +263,7 @@ public class FiveActivePlugin extends Plugin
 		if (FiveActiveConfig.GROUP.equals(event.getGroup())
 			&& !STATE_KEY.equals(event.getKey())
 			&& !FiveActiveConfig.COLLAPSED_SECTIONS_KEY.equals(event.getKey())
+			&& !FiveActiveConfig.SHORTCUTS_KEY.equals(event.getKey())
 			&& !FiveActiveConfig.HISTORY_GROUPING_KEY.equals(event.getKey())
 			&& !FiveActiveConfig.HISTORY_OLDEST_FIRST_KEY.equals(event.getKey())
 			&& !FiveActiveConfig.COLLAPSED_TIERS_KEY.equals(event.getKey()))
@@ -516,6 +518,21 @@ public class FiveActivePlugin extends Plugin
 	}
 
 	// ---------------------------------------------------------------- Hidden shortcuts (see HiddenKeys)
+
+	/** ::fiveactive keys switches the hidden shortcuts on or off (deliberately not a setting anyone would find). */
+	@Subscribe
+	public void onCommandExecuted(CommandExecuted event)
+	{
+		String[] args = event.getArguments();
+		if (!"fiveactive".equalsIgnoreCase(event.getCommand()) || args.length == 0 || !"keys".equalsIgnoreCase(args[0]))
+		{
+			return;
+		}
+		boolean enabled = !config.shortcutsEnabled();
+		configManager.setConfiguration(FiveActiveConfig.GROUP, FiveActiveConfig.SHORTCUTS_KEY, enabled);
+		hiddenKeys.clear();
+		chat("Shortcuts " + (enabled ? "<col=00ff00>on</col>." : "<col=ff0000>off</col>."));
+	}
 
 	@Subscribe
 	public void onFocusChanged(FocusChanged event)
