@@ -521,19 +521,46 @@ public class FiveActivePlugin extends Plugin
 
 	// ---------------------------------------------------------------- Hidden shortcuts (see HiddenKeys)
 
-	/** ::fiveactive keys switches the hidden shortcuts on or off (deliberately not a setting anyone would find). */
+	/**
+	 * ::fiveactive keys switches the hidden shortcuts on or off (deliberately not a setting anyone would find), and
+	 * ::fiveactive help lists them. Commands starting :: stay in the client: nothing is sent to the game.
+	 */
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted event)
 	{
 		String[] args = event.getArguments();
-		if (!"fiveactive".equalsIgnoreCase(event.getCommand()) || args.length == 0 || !"keys".equalsIgnoreCase(args[0]))
+		if (!"fiveactive".equalsIgnoreCase(event.getCommand()) || args.length == 0)
 		{
 			return;
 		}
-		boolean enabled = !config.shortcutsEnabled();
-		configManager.setConfiguration(FiveActiveConfig.GROUP, FiveActiveConfig.SHORTCUTS_KEY, enabled);
-		hiddenKeys.clear();
-		chat("Shortcuts " + (enabled ? "<col=00ff00>on</col>." : "<col=ff0000>off</col>."));
+		if ("keys".equalsIgnoreCase(args[0]))
+		{
+			boolean enabled = !config.shortcutsEnabled();
+			configManager.setConfiguration(FiveActiveConfig.GROUP, FiveActiveConfig.SHORTCUTS_KEY, enabled);
+			hiddenKeys.clear();
+			chat("Shortcuts " + (enabled ? "<col=00ff00>on</col>." : "<col=ff0000>off</col>."));
+			if (enabled)
+			{
+				shortcutHelp();
+			}
+		}
+		else if ("help".equalsIgnoreCase(args[0]))
+		{
+			if (!config.shortcutsEnabled())
+			{
+				chat("Shortcuts are <col=ff0000>off</col>. Type ::fiveactive keys to switch them on.");
+			}
+			shortcutHelp();
+		}
+	}
+
+	/** The hidden shortcuts, in chat. */
+	private void shortcutHelp()
+	{
+		chat("<col=ffd700>Ctrl+Shift+F11</col>: reset the run (all slots emptied, Shuffles returned).");
+		chat("Hold <col=ffd700>R + B / O / L</col>, press <col=ffd700>1-5</col>: empty that boss / quest / skill slot.");
+		chat("Hold <col=ffd700>P + B / L</col>, press <col=ffd700>1-5</col>: +1 kill / level on that boss / skill slot.");
+		chat("Each one backs your run up first: Restore a backup in the settings undoes it. ::fiveactive keys switches them off.");
 	}
 
 	@Subscribe

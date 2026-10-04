@@ -16,7 +16,7 @@ import net.runelite.client.input.KeyListener;
  * Hold P and B or L, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.
  * 
  * They're off until switched on by typing ::fiveactive keys in the chatbox (again to switch off), so a random
- * smack of the keyboard can't touch anyone's run. 
+ * smack of the keyboard can't touch anyone's run. ::fiveactive help lists them.
  * The run is backed up before each one, so Restore a backup can undo it. Nothing happens while typing in chat.
  */
 class HiddenKeys implements KeyListener
