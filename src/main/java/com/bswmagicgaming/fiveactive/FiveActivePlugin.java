@@ -560,6 +560,7 @@ public class FiveActivePlugin extends Plugin
 		chat("<col=ffd700>Ctrl+Shift+F11</col>: reset the run (all slots emptied, Shuffles returned).");
 		chat("Hold <col=ffd700>R + B / O / L</col>, press <col=ffd700>1-5</col>: empty that boss / quest / skill slot.");
 		chat("Hold <col=ffd700>P + B / L</col>, press <col=ffd700>1-5</col>: +1 kill / level on that boss / skill slot.");
+		chat("Hold <col=ffd700>[ + B / L</col>, press <col=ffd700>1-5</col>: -1 kill / level on that boss / skill slot.");
 		chat("Each one backs your run up first: Restore a backup in the settings undoes it. ::fiveactive keys switches them off.");
 	}
 
@@ -631,6 +632,29 @@ public class FiveActivePlugin extends Plugin
 				history.add(HistoryEntry.of(HistoryEntry.Kind.COMPLETED).category(category).name(name));
 				playSound(SoundEffectID.GE_COIN_TINKLE);
 			}
+			saveState();
+			refreshPanel();
+		});
+	}
+
+	/**
+	 * [ + B/L + 1-5: takes one kill or level-up off that boss or skill slot (not below 0). A completed slot goes back
+	 * to in progress; its "Completed" History entry stays.
+	 */
+	void hiddenRegressSlot(Category category, int index)
+	{
+		clientThread.invoke(() ->
+		{
+			List<? extends Slot<?>> slots = state == null ? null : slotsOf(category);
+			if (slots == null || index >= slots.size() || slots.get(index).getProgress() <= 0)
+			{
+				return;
+			}
+			history.backup(gson.toJson(state));
+			Slot<?> slot = slots.get(index);
+			slot.setProgress(slot.getProgress() - 1);
+			slot.setDone(false);
+			slot.setDoneAt(0);
 			saveState();
 			refreshPanel();
 		});

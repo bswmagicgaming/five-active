@@ -14,6 +14,7 @@ import net.runelite.client.input.KeyListener;
  * Ctrl+Shift+F11: reset the whole run (every slot emptied, Shuffles returned).
  * Hold R and B, O or L, then press 1 to 5: empty that boss, quest or skill slot.
  * Hold P and B or L, then press 1 to 5: one kill / level-up of progress on that boss or skill slot.
+ * Hold [ and B or L, then press 1 to 5: one kill / level-up less on that boss or skill slot.
  * 
  * They're off until switched on by typing ::fiveactive keys in the chatbox (again to switch off), so a random
  * smack of the keyboard can't touch anyone's run. ::fiveactive help lists them.
@@ -47,7 +48,7 @@ class HiddenKeys implements KeyListener
 			plugin.hiddenResetRun();
 			return;
 		}
-		if (key == KeyEvent.VK_R || key == KeyEvent.VK_P || key == KeyEvent.VK_B || key == KeyEvent.VK_O || key == KeyEvent.VK_L)
+		if (key == KeyEvent.VK_R || key == KeyEvent.VK_P || key == KeyEvent.VK_OPEN_BRACKET || key == KeyEvent.VK_B || key == KeyEvent.VK_O || key == KeyEvent.VK_L)
 		{
 			held.add(key);
 			return;
@@ -75,6 +76,11 @@ class HiddenKeys implements KeyListener
 		{
 			e.consume();
 			plugin.hiddenProgressSlot(category, slot);
+		}
+		else if (held.contains(KeyEvent.VK_OPEN_BRACKET) && category != Category.QUESTS)
+		{
+			e.consume();
+			plugin.hiddenRegressSlot(category, slot);
 		}
 	}
 
