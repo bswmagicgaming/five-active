@@ -4,12 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.inject.Provides;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
@@ -552,6 +554,15 @@ public class FiveActivePlugin extends Plugin
 			}
 			shortcutHelp();
 		}
+		else if ("set".equalsIgnoreCase(args[0]))
+		{
+			if (!config.shortcutsEnabled())
+			{
+				chat("Shortcuts are <col=ff0000>off</col>. Type ::fiveactive keys to switch them on.");
+				return;
+			}
+			setSlot(args);
+		}
 	}
 
 	/** The hidden shortcuts, in chat. */
@@ -561,7 +572,232 @@ public class FiveActivePlugin extends Plugin
 		chat("Hold <col=ffd700>R + B / O / L</col>, press <col=ffd700>1-5</col>: empty that boss / quest / skill slot.");
 		chat("Hold <col=ffd700>P + B / L</col>, press <col=ffd700>1-5</col>: +1 kill / level on that boss / skill slot.");
 		chat("Hold <col=ffd700>[ + B / L</col>, press <col=ffd700>1-5</col>: -1 kill / level on that boss / skill slot.");
+		chat("<col=ffd700>::fiveactive set boss / skill / quest 1-5 name</col>: put that in the slot, e.g. ::fiveactive set boss 1 brutus.");
 		chat("Each one backs your run up first: Restore a backup in the settings undoes it. ::fiveactive keys switches them off.");
+	}
+
+	/**
+	 * ::fiveactive set boss|skill|quest 1-5 name. Puts that boss, skill or quest in the slot, as long as it could
+	 * be rolled (completed quests are allowed too), without spending a Shuffle. Past the last filled slot it goes in
+	 * the next free one; if it's already in another slot, the two swap places.
+	 */
+	private void setSlot(String[] args)
+	{
+		if (state == null)
+		{
+			chat("Log in first.");
+			return;
+		}
+		Category category = args.length < 4 ? null : categoryNamed(args[1]);
+		int slot = args.length < 4 ? -1 : slotNumber(args[2]);
+		if (category == null || slot < 0)
+		{
+			chat("Try <col=ffd700>::fiveactive set boss 1 brutus</col> (boss, skill or quest; slot 1 to 5; then the name).");
+			return;
+		}
+		String name = String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length));
+		Map<Quest, QuestState> questStates = rollingEngine.questStates();
+		switch (category)
+		{
+			case SKILLS:
+			{
+				NameLookup.Result<Skill> found = NameLookup.skill(name);
+				if (found.getMatch() == null)
+				{
+					chat("No skill is called \"" + name + "\".");
+					return;
+				}
+				Skill skill = found.getMatch();
+				String refused = skillRefusal(skill, slot, questStates);
+				if (refused != null)
+				{
+					chat("<col=ff0000>Can't set " + skill.getName() + ":</col> " + refused);
+					return;
+				}
+				placeInSlot(state.getSkills(), slot, skill, skill.getName(), category, s ->
+				{
+					int level = client.getRealSkillLevel(skill);
+					s.setGoal(Rules.skillGoalFrom(level));
+					s.setProgress(Rules.skillProgressFrom(level));
+				});
+				break;
+			}
+			case BOSSES:
+			{
+				NameLookup.Result<Boss> found = NameLookup.boss(name);
+				if (found.getMatch() == null)
+				{
+					chat("No boss is called \"" + name + "\".");
+					return;
+				}
+				Boss boss = found.getMatch();
+				String refused = rollingEngine.bossLockReason(boss, getUnlockedTiers(), getTotalBossKc(), questStates);
+				if (refused != null)
+				{
+					chat("<col=ff0000>Can't set " + boss.getDisplayName() + ":</col> " + refused + ".");
+					return;
+				}
+				placeInSlot(state.getBosses(), slot, boss, boss.getDisplayName(), category, s -> { });
+				break;
+			}
+			case QUESTS:
+			default:
+			{
+				NameLookup.Result<Quest> found = NameLookup.quest(name);
+				if (found.getMatch() == null)
+				{
+					if (found.getOptions().isEmpty())
+					{
+						chat("No quest matches \"" + name + "\".");
+					}
+					else
+					{
+						chat("Which quest? " + String.join(", ", found.getOptions())
+							+ (found.getMore() > 0 ? " and " + found.getMore() + " more." : "."));
+					}
+					return;
+				}
+				Quest quest = found.getMatch();
+				boolean finished = questStates.get(quest) == QuestState.FINISHED;
+				if (!finished && !rollingEngine.isQuestRollable(quest, questStates))
+				{
+					chat("<col=ff0000>Can't set " + quest.getName() + ":</col> "
+						+ (QuestRequirements.NEVER_ROLLED.contains(quest) ? "it's rolled one subquest at a time." : "its required quests aren't done yet."));
+					return;
+				}
+				placeInSlot(state.getQuests(), slot, quest, quest.getName(), category, s ->
+				{
+					if (finished)
+					{
+						// Already done in-game: it shows as completed straight away
+						s.setDone(true);
+						s.setFresh(false);
+						s.setDoneAt(System.currentTimeMillis());
+					}
+				});
+				break;
+			}
+		}
+	}
+
+	/** Why this skill can't go in the slot (the same rules as rolling), or null if it can. */
+	private String skillRefusal(Skill skill, int slot, Map<Quest, QuestState> questStates)
+	{
+		if (Rules.NEVER_ROLLED.contains(skill))
+		{
+			return skill.getName() + " is always active.";
+		}
+		if (rollingEngine.isMaxed(skill))
+		{
+			return "it's already 99.";
+		}
+		if (!rollingEngine.rollableSkills(questStates).contains(skill))
+		{
+			Quest unlock = Rules.SKILL_UNLOCK_QUESTS.get(skill);
+			return unlock != null ? "it needs " + unlock.getName() + " first." : "it can't be rolled right now.";
+		}
+		// One active skill must be a combat skill, while there's a combat skill left below 99
+		boolean anyCombatLeft = rollingEngine.rollableSkills(questStates).stream().anyMatch(Rules.COMBAT_SKILLS::contains);
+		if (anyCombatLeft && !Rules.COMBAT_SKILLS.contains(skill))
+		{
+			List<Slot<Skill>> skills = state.getSkills();
+			boolean otherCombat = false;
+			for (int i = 0; i < skills.size(); i++)
+			{
+				Slot<Skill> other = skills.get(i);
+				if (i != slot && other.getValue() != skill && !other.isDone() && Rules.COMBAT_SKILLS.contains(other.getValue()))
+				{
+					otherCombat = true;
+				}
+			}
+			if (!otherCombat)
+			{
+				return "at least one active skill must be a combat skill (Attack, Strength, Defence, Ranged or Magic).";
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Puts value in slot (0-based): replacing what's there, or in the next free slot if that's past the end. If
+	 * it's already in another slot the two swap places instead. setUp prepares a new slot. Backs the run up first.
+	 */
+	private <T> void placeInSlot(List<Slot<T>> slots, int slot, T value, String name, Category category, Consumer<Slot<T>> setUp)
+	{
+		String what = category.getSingular() + " slot ";
+		int existing = -1;
+		for (int i = 0; i < slots.size(); i++)
+		{
+			if (slots.get(i).getValue() == value)
+			{
+				existing = i;
+			}
+		}
+		if (existing == slot)
+		{
+			chat(name + " is already in " + what + (slot + 1) + ".");
+			return;
+		}
+		if (existing >= 0 && slot >= slots.size())
+		{
+			chat(name + " is already in " + what + (existing + 1) + ".");
+			return;
+		}
+		history.backup(gson.toJson(state));
+		if (existing >= 0)
+		{
+			Collections.swap(slots, existing, slot);
+			chat(name + " moved to " + what + (slot + 1) + " (swapped with slot " + (existing + 1) + ").");
+		}
+		else
+		{
+			Slot<T> fresh = Slot.of(value);
+			setUp.accept(fresh);
+			if (slot < slots.size())
+			{
+				slots.set(slot, fresh);
+				chat(what.substring(0, 1).toUpperCase() + what.substring(1) + (slot + 1) + " is now " + name + ".");
+			}
+			else
+			{
+				slots.add(fresh);
+				chat(name + " added as " + what + slots.size() + ".");
+			}
+		}
+		saveState();
+		refreshPanel();
+	}
+
+	private static Category categoryNamed(String word)
+	{
+		switch (word.toLowerCase())
+		{
+			case "boss":
+			case "bosses":
+				return Category.BOSSES;
+			case "skill":
+			case "skills":
+				return Category.SKILLS;
+			case "quest":
+			case "quests":
+				return Category.QUESTS;
+			default:
+				return null;
+		}
+	}
+
+	/** "1" to "5" as a slot index 0 to 4, or -1. */
+	private static int slotNumber(String word)
+	{
+		try
+		{
+			int number = Integer.parseInt(word);
+			return number >= 1 && number <= Rules.SLOTS ? number - 1 : -1;
+		}
+		catch (NumberFormatException e)
+		{
+			return -1;
+		}
 	}
 
 	@Subscribe
