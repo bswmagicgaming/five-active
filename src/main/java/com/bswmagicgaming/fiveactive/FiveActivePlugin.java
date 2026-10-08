@@ -561,7 +561,9 @@ public class FiveActivePlugin extends Plugin
 				chat("Shortcuts are <col=ff0000>off</col>. Type ::fiveactive keys to switch them on.");
 				return;
 			}
-			setSlot(args);
+			// Commands arrive in the middle of the game's chat input script, and reading quest states runs a script of
+			// its own, which can't start inside another: wait until the chat script has finished
+			clientThread.invokeLater(() -> setSlot(args));
 		}
 	}
 
